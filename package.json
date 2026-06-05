@@ -1,0 +1,27 @@
+{
+  "name": "obsidian-image-gallery",
+  "version": "0.0.1",
+  "description": "Render image folders as a masonry grid with a full-screen viewer.",
+  "main": "main.js",
+  "scripts": {
+    "dev": "bun esbuild.config.mjs",
+    "build": "tsc -noEmit -skipLibCheck && bun esbuild.config.mjs production"
+  },
+  "keywords": [
+    "obsidian",
+    "obsidian-plugin",
+    "image",
+    "gallery",
+    "masonry"
+  ],
+  "author": "swapii",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "builtin-modules": "^3.3.0",
+    "esbuild": "^0.20.2",
+    "obsidian": "latest",
+    "tslib": "^2.6.2",
+    "typescript": "^5.4.5"
+  }
+}
