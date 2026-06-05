@@ -12,6 +12,7 @@
 
 .ig-item {
   margin-bottom: 8px;
+  cursor: pointer;
 }
 
 .ig-item img {
