@@ -26,7 +26,13 @@ https://picsum.photos/id/239/600/700
 The plugin renders the images as a masonry grid; click any preview to open the full-screen viewer
 (navigate with the on-screen arrows, your keyboard, or swipe; press Esc to close).
 
+## Install (beta)
+
+Until this is in the community plugin store, install it with
+[BRAT](https://github.com/TfTHacker/obsidian42-brat): add the beta plugin `swapii/obsidian-image-gallery`,
+then enable **Image Gallery** under Settings → Community plugins.
+
 ## Status
 
-Early work in progress — local-only, no release yet. Sourcing is currently a URL list; pointing a gallery
-at a vault folder is planned.
+Early work in progress — no stable release yet. Sourcing is currently a URL list; pointing a gallery at a
+vault folder is planned.
