@@ -1,1 +1,22 @@
 /* Image Gallery plugin styles */
+
+.ig-grid {
+  width: 100%;
+}
+
+/* Fixed column width — Masonry fits as many of these as the pane allows. */
+.ig-sizer,
+.ig-item {
+  width: 200px;
+}
+
+.ig-item {
+  margin-bottom: 8px;
+}
+
+.ig-item img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 4px;
+}

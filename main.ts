@@ -1,9 +1,13 @@
-import { Notice, Plugin } from "obsidian";
+import { Plugin } from "obsidian";
+import { GalleryRenderChild } from "./src/gallery";
 
 export default class ImageGalleryPlugin extends Plugin {
   async onload() {
     console.log("Image Gallery: loading plugin");
-    new Notice("Image Gallery loaded");
+
+    this.registerMarkdownCodeBlockProcessor("image-gallery", (source, el, ctx) => {
+      ctx.addChild(new GalleryRenderChild(el, source));
+    });
   }
 
   onunload() {
