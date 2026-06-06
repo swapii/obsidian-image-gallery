@@ -14,6 +14,7 @@ export class GalleryRenderChild extends MarkdownRenderChild {
   private masonry: Masonry | null = null;
   private lightbox: PhotoSwipeLightbox | null = null;
   private resizeObserver: ResizeObserver | null = null;
+  private lastOpenAt = 0;
 
   constructor(containerEl: HTMLElement, private source: string) {
     super(containerEl);
@@ -44,6 +45,12 @@ export class GalleryRenderChild extends MarkdownRenderChild {
       img.loading = "lazy";
 
       item.addEventListener("click", () => {
+        // A single tap can fire two click events (e.g. touch -> a synthesized click on
+        // mobile), which would stack two viewers. Collapse rapid repeats from one tap.
+        const now = Date.now();
+        if (now - this.lastOpenAt < 400) return;
+        this.lastOpenAt = now;
+
         if (slides[index].width === 0 && img.naturalWidth > 0) {
           slides[index].width = img.naturalWidth;
           slides[index].height = img.naturalHeight;
