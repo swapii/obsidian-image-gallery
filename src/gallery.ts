@@ -112,6 +112,10 @@ export class GalleryRenderChild extends MarkdownRenderChild {
     this.muuri = new Muuri(grid, {
       items: ".ig-item",
       dragEnabled: true,
+      // Require a little movement before a drag begins. Otherwise Muuri treats a plain
+      // tap as a zero-distance drag, which fires dragEnd and makes the click guard
+      // swallow the tap — so the viewer never opens.
+      dragStartPredicate: { distance: 10 },
       layout: { fillGaps: true },
     });
     // Remember when a drag ended, so the trailing synthesized click is ignored.
