@@ -1,15 +1,14 @@
 # Obsidian Image Gallery
 
 An Obsidian plugin that renders a list of images as a masonry grid inside your notes. Previews are packed
-into a responsive, gap-free grid, and clicking any image opens it full-screen with prev/next switching —
-without leaving the note.
+into a responsive, gap-free grid; clicking an image opens it full-screen with prev/next switching, and you
+can drag tiles to reorder the gallery — all without leaving the note.
 
 ## How it works
 
-The plugin builds on two well-known libraries: [Masonry](https://masonry.desandro.com/) (with imagesLoaded)
-packs the previews into a responsive grid that fits as many columns as the note pane allows, and
-[PhotoSwipe](https://photoswipe.com/) provides the full-screen viewer with zoom and keyboard/swipe
-navigation between images.
+The plugin builds on two libraries: [Muuri](https://github.com/haltu/muuri) packs the previews into a
+responsive masonry grid and makes the tiles draggable, and [PhotoSwipe](https://photoswipe.com/) provides
+the full-screen viewer with zoom and keyboard/swipe navigation between images.
 
 ## Usage
 
@@ -23,8 +22,10 @@ https://picsum.photos/id/239/600/700
 ```
 ````
 
-The plugin renders the images as a masonry grid; click any preview to open the full-screen viewer
-(navigate with the on-screen arrows, your keyboard, or swipe; press Esc to close).
+The plugin renders the images as a masonry grid. Click any preview to open the full-screen viewer
+(navigate with the on-screen arrows, your keyboard, or swipe; press Esc to close). Drag a tile to rearrange
+the grid, then click **Apply new order** to write the new order back to the code block — or **Cancel
+reordering** to revert.
 
 ## Install (beta)
 
@@ -34,5 +35,5 @@ then enable **Image Gallery** under Settings → Community plugins.
 
 ## Status
 
-Early work in progress — no stable release yet. Sourcing is currently a URL list; pointing a gallery at a
-vault folder is planned.
+Early work in progress. Image sourcing is currently a URL list; pointing a gallery at a vault folder is
+planned.

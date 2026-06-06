@@ -12,7 +12,7 @@ export default class ImageGalleryPlugin extends Plugin {
     this.styleEl = document.head.createEl("style", { text: photoswipeCss });
 
     this.registerMarkdownCodeBlockProcessor("image-gallery", (source, el, ctx) => {
-      ctx.addChild(new GalleryRenderChild(el, source));
+      ctx.addChild(new GalleryRenderChild(el, source, this.app, ctx));
     });
   }
 

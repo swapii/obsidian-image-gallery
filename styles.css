@@ -1,18 +1,41 @@
 /* Image Gallery plugin styles */
 
-.ig-grid {
-  width: 100%;
-}
-
-/* Fixed column width — Masonry fits as many of these as the pane allows. */
-.ig-sizer,
-.ig-item {
-  width: 200px;
-}
-
-.ig-item {
+.ig-toolbar {
+  display: flex;
+  gap: 8px;
   margin-bottom: 8px;
+}
+
+.ig-grid {
+  position: relative;
+}
+
+/* Fixed-width tiles; Muuri packs as many columns as the pane allows. */
+.ig-item {
+  position: absolute;
+  display: block;
+  width: 200px;
+  margin: 4px;
+  z-index: 1;
   cursor: pointer;
+}
+
+.ig-item.muuri-item-dragging {
+  z-index: 3;
+  cursor: grabbing;
+}
+
+.ig-item.muuri-item-releasing {
+  z-index: 2;
+}
+
+.ig-item.muuri-item-hidden {
+  z-index: 0;
+}
+
+.ig-item-content {
+  position: relative;
+  width: 100%;
 }
 
 .ig-item img {
@@ -25,9 +48,7 @@
   pointer-events: none;
 }
 
-/* On mobile, PhotoSwipe's overlay covers the whole screen, so its top controls can
-   land under the status bar / notch. Nudge the top bar down by the safe-area inset
-   so the close/zoom buttons stay tappable. Desktop (no .is-mobile) is unaffected. */
+/* On mobile, keep PhotoSwipe's top controls below the status bar / notch. */
 .is-mobile .pswp__top-bar {
   top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
 }
