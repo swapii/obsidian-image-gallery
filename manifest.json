@@ -1,7 +1,7 @@
 {
   "id": "image-gallery",
   "name": "Image Gallery",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "minAppVersion": "1.5.0",
   "description": "A masonry image gallery with a full-screen viewer.",
   "author": "swapii",

@@ -14,7 +14,6 @@ export class GalleryRenderChild extends MarkdownRenderChild {
   private masonry: Masonry | null = null;
   private lightbox: PhotoSwipeLightbox | null = null;
   private resizeObserver: ResizeObserver | null = null;
-  private lastOpenAt = 0;
 
   constructor(containerEl: HTMLElement, private source: string) {
     super(containerEl);
@@ -44,12 +43,10 @@ export class GalleryRenderChild extends MarkdownRenderChild {
       img.src = url;
       img.loading = "lazy";
 
-      item.addEventListener("click", () => {
-        // A single tap can fire two click events (e.g. touch -> a synthesized click on
-        // mobile), which would stack two viewers. Collapse rapid repeats from one tap.
-        const now = Date.now();
-        if (now - this.lastOpenAt < 400) return;
-        this.lastOpenAt = now;
+      item.addEventListener("click", (e) => {
+        // Stop the click from reaching Obsidian's built-in image handler, which would
+        // otherwise open its own viewer underneath ours.
+        e.stopPropagation();
 
         if (slides[index].width === 0 && img.naturalWidth > 0) {
           slides[index].width = img.naturalWidth;

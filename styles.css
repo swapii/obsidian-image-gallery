@@ -20,6 +20,9 @@
   width: 100%;
   height: auto;
   border-radius: 4px;
+  /* Let clicks fall through to the tile so Obsidian's built-in image viewer
+     doesn't open on top of ours. */
+  pointer-events: none;
 }
 
 /* On mobile, PhotoSwipe's overlay covers the whole screen, so its top controls can
