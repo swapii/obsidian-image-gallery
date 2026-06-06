@@ -1,9 +1,9 @@
 {
   "id": "image-gallery",
   "name": "Image Gallery",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "minAppVersion": "1.5.0",
-  "description": "Render image folders as a masonry grid with a full-screen viewer.",
+  "description": "A masonry image gallery with a full-screen viewer.",
   "author": "swapii",
   "authorUrl": "https://github.com/swapii",
   "isDesktopOnly": false

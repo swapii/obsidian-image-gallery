@@ -21,3 +21,10 @@
   height: auto;
   border-radius: 4px;
 }
+
+/* On mobile, PhotoSwipe's overlay covers the whole screen, so its top controls can
+   land under the status bar / notch. Nudge the top bar down by the safe-area inset
+   so the close/zoom buttons stay tappable. Desktop (no .is-mobile) is unaffected. */
+.is-mobile .pswp__top-bar {
+  top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+}
