@@ -6,45 +6,41 @@
   margin-bottom: 8px;
 }
 
+/* Justified rows: a single flex-wrap row of tiles whose width and height are set inline by the
+   layout code (src/gallery.ts). The `gap` here must match GAP in that file. */
 .ig-grid {
-  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
-/* Fixed-width tiles; Muuri packs as many columns as the pane allows. */
 .ig-item {
-  position: absolute;
-  display: block;
-  width: 200px;
-  margin: 4px;
-  z-index: 1;
-  cursor: pointer;
+  /* Respect the inline width exactly — don't grow or shrink — so rows wrap where the layout
+     intends. */
+  flex: 0 0 auto;
+  overflow: hidden;
+  border-radius: 4px;
+  cursor: grab;
 }
 
-.ig-item.muuri-item-dragging {
-  z-index: 3;
+/* SortableJS drag feedback. */
+.ig-item.sortable-chosen {
   cursor: grabbing;
 }
 
-.ig-item.muuri-item-releasing {
-  z-index: 2;
-}
-
-.ig-item.muuri-item-hidden {
-  z-index: 0;
-}
-
-.ig-item-content {
-  position: relative;
-  width: 100%;
+.ig-item.sortable-ghost {
+  opacity: 0.4;
 }
 
 .ig-item img {
   display: block;
   width: 100%;
-  height: auto;
-  border-radius: 4px;
-  /* Let clicks fall through to the tile so Obsidian's built-in image viewer
-     doesn't open on top of ours. */
+  height: 100%;
+  /* The tile's aspect ratio matches the image's, so `cover` shows the whole image with no
+     visible crop — it just absorbs sub-pixel rounding. */
+  object-fit: cover;
+  /* Let clicks fall through to the tile so Obsidian's built-in image viewer doesn't open on
+     top of ours. */
   pointer-events: none;
 }
 

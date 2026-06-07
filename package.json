@@ -1,24 +1,26 @@
 {
   "name": "obsidian-image-gallery",
   "version": "0.0.1",
-  "description": "Render image folders as a masonry grid with a full-screen viewer.",
+  "description": "Render a list of image URLs as a justified-rows gallery with a full-screen viewer.",
   "main": "main.js",
   "scripts": {
     "dev": "bun esbuild.config.mjs",
-    "build": "tsc -noEmit -skipLibCheck && bun esbuild.config.mjs production"
+    "build": "tsc -noEmit -skipLibCheck && bun esbuild.config.mjs production",
+    "test": "bun test"
   },
   "keywords": [
     "obsidian",
     "obsidian-plugin",
     "image",
     "gallery",
-    "masonry"
+    "justified"
   ],
   "author": "swapii",
   "license": "MIT",
   "devDependencies": {
     "@types/imagesloaded": "^4.1.7",
     "@types/node": "^20.11.0",
+    "@types/sortablejs": "^1.15.9",
     "builtin-modules": "^3.3.0",
     "esbuild": "^0.20.2",
     "obsidian": "latest",
@@ -27,7 +29,7 @@
   },
   "dependencies": {
     "imagesloaded": "^5.0.0",
-    "muuri": "^0.9.5",
-    "photoswipe": "^5.4.4"
+    "photoswipe": "^5.4.4",
+    "sortablejs": "^1.15.7"
   }
 }

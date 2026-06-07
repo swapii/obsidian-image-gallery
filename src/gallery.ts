@@ -1,22 +1,30 @@
 import { App, MarkdownPostProcessorContext, MarkdownRenderChild, TFile } from "obsidian";
-import Muuri from "muuri";
+import Sortable from "sortablejs";
 import imagesLoaded from "imagesloaded";
 import PhotoSwipeLightbox from "photoswipe/lightbox";
+import { computeJustifiedLayout } from "./justified";
 
 type Slide = { src: string; width: number; height: number };
 
-// Renders an `image-gallery` block: one image URL per line, packed into a draggable
-// masonry grid (Muuri). Clicking a tile opens a full-screen PhotoSwipe viewer; dragging
-// reorders tiles locally. "Apply new order" writes the order back to the note (the one
-// moment the gallery re-renders); "Cancel reordering" animates back to the saved order.
+// Target row height and gap for the justified layout. GAP must match the `gap` in styles.css.
+const ROW_HEIGHT = 200;
+const GAP = 4;
+
+// Renders an `image-gallery` block: one image URL per line, laid out in justified rows (every
+// row the same height, photos scaled to fill the width with no cropping — like Google Photos).
+// Clicking a tile opens a full-screen PhotoSwipe viewer; dragging reorders tiles locally in plain
+// reading order, so the resulting order is predictable. "Apply new order" writes the order back to
+// the note (the one moment the gallery re-renders); "Cancel reordering" restores the saved order.
 export class GalleryRenderChild extends MarkdownRenderChild {
-  private muuri: Muuri | null = null;
+  private sortable: Sortable | null = null;
   private lightbox: PhotoSwipeLightbox | null = null;
   private resizeObserver: ResizeObserver | null = null;
+  private grid: HTMLElement | null = null;
   private applyBtn: HTMLButtonElement | null = null;
   private cancelBtn: HTMLButtonElement | null = null;
   private slides: Slide[] = [];
   private destroyed = false;
+  private dragging = false;
   private lastDragEnd = 0;
 
   constructor(
@@ -47,8 +55,8 @@ export class GalleryRenderChild extends MarkdownRenderChild {
       return;
     }
 
-    // Reorder controls — hidden until tiles are reordered. Reordering stays local
-    // (smooth); Apply is the one moment we rewrite the note, Cancel reverts it.
+    // Reorder controls — hidden until tiles are reordered. Reordering stays local (smooth);
+    // Apply is the one moment we rewrite the note, Cancel reverts it.
     const toolbar = this.containerEl.createDiv({ cls: "ig-toolbar" });
 
     const applyBtn = toolbar.createEl("button", { cls: "mod-cta ig-apply", text: "Apply new order" });
@@ -62,6 +70,7 @@ export class GalleryRenderChild extends MarkdownRenderChild {
     this.cancelBtn = cancelBtn;
 
     const grid = this.containerEl.createDiv({ cls: "ig-grid" });
+    this.grid = grid;
     this.slides = urls.map((src) => ({ src, width: 0, height: 0 }));
 
     this.lightbox = new PhotoSwipeLightbox({ pswpModule: () => import("photoswipe") });
@@ -70,70 +79,62 @@ export class GalleryRenderChild extends MarkdownRenderChild {
     urls.forEach((url, index) => {
       const item = grid.createDiv({ cls: "ig-item" });
       item.dataset.index = String(index);
-      const content = item.createDiv({ cls: "ig-item-content" });
-      const img = content.createEl("img");
+      const img = item.createEl("img");
       img.src = url;
-      img.loading = "lazy";
+      // Load eagerly: the justified layout needs each image's real aspect ratio, and galleries
+      // here are modest. Lazy loading would leave off-screen tiles at a placeholder ratio until
+      // scrolled, making the grid reshuffle as you scroll.
+      img.loading = "eager";
 
       item.addEventListener("click", (e) => {
         // Stop Obsidian's built-in image viewer from also opening.
         e.stopPropagation();
-        // Ignore the click the browser synthesizes at the end of a drag.
-        if (Date.now() - this.lastDragEnd < 400) return;
+        // Ignore a click mid-drag, and the one the browser synthesizes at the end of a drag.
+        if (this.dragging || Date.now() - this.lastDragEnd < 300) return;
         this.openViewer(item);
       });
     });
 
-    // Muuri requires the grid to be attached to the document AND to have a real width,
-    // but Obsidian renders code blocks into a detached, not-yet-sized element — so defer
-    // setup until both hold. Image-load wiring goes there too, once Muuri exists.
-    this.initGridWhenAttached(grid);
+    this.initGridWhenReady(grid);
   }
 
-  private initGridWhenAttached(grid: HTMLElement, attempts = 0) {
+  private initGridWhenReady(grid: HTMLElement, attempts = 0) {
     if (this.destroyed) return;
 
-    // Muuri packs absolutely-positioned tiles from the grid's measured width. Obsidian
-    // attaches a rendered code block before its pane has a settled width, so waiting only
-    // for attachment can run the one guaranteed layout against width 0 — every tile lands
-    // at (0,0), they overlap, and you see a single photo until something forces another
-    // layout (e.g. dragging the pane edge). So wait for a real width too. Don't spin
-    // forever: after ~1s give up waiting, build anyway, and let the ResizeObserver recover
-    // the layout whenever the pane is finally shown or resized.
+    // Wait for attachment AND a real width before the first layout. Obsidian attaches a rendered
+    // code block before its pane has a settled width; a justified layout computed against width 0
+    // collapses every tile to (0,0). Don't spin forever — after ~1s build anyway and let the
+    // ResizeObserver recover when the pane is finally shown or resized.
     const ready = document.body.contains(grid) && grid.clientWidth > 0;
     if (!ready && attempts < 60) {
-      requestAnimationFrame(() => this.initGridWhenAttached(grid, attempts + 1));
+      requestAnimationFrame(() => this.initGridWhenReady(grid, attempts + 1));
       return;
     }
 
-    this.muuri = new Muuri(grid, {
-      items: ".ig-item",
-      dragEnabled: true,
-      // Require a little movement before a drag begins. Otherwise Muuri treats a plain
-      // tap as a zero-distance drag, which fires dragEnd and makes the click guard
-      // swallow the tap — so the viewer never opens.
-      dragStartPredicate: { distance: 10 },
-      layout: { fillGaps: true },
+    // Predictable drag-reorder: every tile lives in one flat container, so a drag is a simple
+    // linear reorder in reading order. SortableJS handles both mouse and touch (mobile).
+    this.sortable = Sortable.create(grid, {
+      animation: 150,
+      draggable: ".ig-item",
+      onStart: () => {
+        this.dragging = true;
+      },
+      onEnd: () => {
+        this.dragging = false;
+        this.lastDragEnd = Date.now();
+        this.updateButtons();
+        // The moved tile changes the shape of its row(s) — re-justify.
+        this.layout();
+      },
     });
-    // Remember when a drag ended, so the trailing synthesized click is ignored.
-    this.muuri.on("dragEnd", () => {
-      this.lastDragEnd = Date.now();
-    });
-    // Reordering is local — just toggle the controls. The note is rewritten on Apply.
-    this.muuri.on("dragReleaseEnd", () => this.updateButtons());
 
-    // Re-pack on any later size change. refreshItems() re-measures tiles before layout(),
-    // so a width change arriving together with freshly-loaded images still packs correctly,
-    // and the first real width (after a render at width 0) repairs the overlapping pile.
-    this.resizeObserver = new ResizeObserver(() => this.muuri?.refreshItems().layout());
+    this.resizeObserver = new ResizeObserver(() => this.layout());
     this.resizeObserver.observe(this.containerEl);
 
-    // Record image dimensions for the viewer and re-pack as each image loads. Wired up only
-    // now that Muuri exists: cached images can finish loading during the wait above, and if
-    // imagesLoaded were attached earlier (as it used to be) those relayouts would fire into a
-    // null Muuri and be silently lost — leaving the grid frozen in its first layout. Attaching
-    // late loses nothing: imagesLoaded still emits progress for already-complete images. The
-    // final "always" pass guarantees one more layout after every image has settled.
+    // Record natural dimensions (for the viewer and for aspect ratios) and re-justify as each
+    // image loads. Wired up only now that the grid is ready, so cached images that finish during
+    // the wait above can't fire their relayout before we're listening. The final "always" pass
+    // guarantees one more layout after every image has settled.
     const loaded = imagesLoaded(grid);
     loaded.on("progress", (_instance, image) => {
       if (image?.isLoaded) {
@@ -144,20 +145,39 @@ export class GalleryRenderChild extends MarkdownRenderChild {
           this.slides[i].height = image.img.naturalHeight;
         }
       }
-      this.muuri?.refreshItems().layout();
+      this.layout();
     });
-    loaded.on("always", () => this.muuri?.refreshItems().layout());
+    loaded.on("always", () => this.layout());
 
-    // Images may already have loaded while we waited — re-pack to be safe.
-    this.muuri.refreshItems().layout();
+    this.layout();
+  }
+
+  // Size every tile from the justified layout, for the current on-screen order and grid width.
+  private layout() {
+    const grid = this.grid;
+    if (!grid) return;
+    const width = grid.clientWidth;
+    const items = Array.from(grid.querySelectorAll<HTMLElement>(".ig-item"));
+    if (width <= 0 || items.length === 0) return;
+
+    const aspectRatios = items.map((it) => {
+      const slide = this.slides[Number(it.dataset.index)];
+      return slide && slide.width > 0 && slide.height > 0 ? slide.width / slide.height : 1;
+    });
+    const sizes = computeJustifiedLayout(aspectRatios, width, ROW_HEIGHT, GAP);
+    items.forEach((it, i) => {
+      // Floor so a row never rounds past the container width and wraps a tile onto the next line.
+      it.style.width = Math.floor(sizes[i].width) + "px";
+      it.style.height = Math.floor(sizes[i].height) + "px";
+    });
   }
 
   // Show the reorder controls only when the on-screen order differs from the saved one.
   private updateButtons() {
-    if (!this.muuri) return;
-    const reordered = this.muuri
-      .getItems()
-      .some((it, pos) => Number((it.getElement() as HTMLElement).dataset.index) !== pos);
+    const grid = this.grid;
+    if (!grid) return;
+    const items = Array.from(grid.querySelectorAll<HTMLElement>(".ig-item"));
+    const reordered = items.some((it, pos) => Number(it.dataset.index) !== pos);
     if (reordered) {
       this.applyBtn?.show();
       this.cancelBtn?.show();
@@ -167,30 +187,33 @@ export class GalleryRenderChild extends MarkdownRenderChild {
     }
   }
 
-  // Animate tiles back to the saved order without touching the note.
+  // Restore the saved order without touching the note: re-append tiles by their original index.
   private cancelReorder() {
-    this.muuri?.sort(
-      (a, b) =>
-        Number((a.getElement() as HTMLElement).dataset.index) -
-        Number((b.getElement() as HTMLElement).dataset.index),
+    const grid = this.grid;
+    if (!grid) return;
+    const items = Array.from(grid.querySelectorAll<HTMLElement>(".ig-item")).sort(
+      (a, b) => Number(a.dataset.index) - Number(b.dataset.index),
     );
+    for (const it of items) grid.appendChild(it);
     this.updateButtons();
+    this.layout();
   }
 
   onunload() {
     this.destroyed = true;
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
-    this.muuri?.destroy();
-    this.muuri = null;
+    this.sortable?.destroy();
+    this.sortable = null;
     this.lightbox?.destroy?.();
     this.lightbox = null;
   }
 
   // Open PhotoSwipe at the clicked tile, with slides in the current on-screen order.
   private openViewer(clickedItem: HTMLElement) {
-    if (!this.muuri || !this.lightbox) return;
-    const order = this.muuri.getItems().map((it) => it.getElement() as HTMLElement);
+    const grid = this.grid;
+    if (!grid || !this.lightbox) return;
+    const order = Array.from(grid.querySelectorAll<HTMLElement>(".ig-item"));
     const pos = order.indexOf(clickedItem);
     const orderedSlides = order.map((el) => {
       const i = Number(el.dataset.index);
@@ -207,18 +230,19 @@ export class GalleryRenderChild extends MarkdownRenderChild {
 
   // Read the current tile order and rewrite the note if it changed.
   private async persistOrder() {
-    if (!this.muuri) return;
-    const order = this.muuri
-      .getItems()
-      .map((it) => Number((it.getElement() as HTMLElement).dataset.index));
+    const grid = this.grid;
+    if (!grid) return;
+    const order = Array.from(grid.querySelectorAll<HTMLElement>(".ig-item")).map((it) =>
+      Number(it.dataset.index),
+    );
     const urls = this.parseUrls();
     const newUrls = order.map((i) => urls[i]);
     if (newUrls.join("\n") === urls.join("\n")) return; // order unchanged
     await this.rewriteBlock(newUrls);
   }
 
-  // Rewrite only the URL lines of this code block in the new order, leaving the fence
-  // and any comment/blank lines untouched.
+  // Rewrite only the URL lines of this code block in the new order, leaving the fence and any
+  // comment/blank lines untouched.
   private async rewriteBlock(newUrls: string[]) {
     const info = this.ctx.getSectionInfo(this.containerEl);
     if (!info) return;

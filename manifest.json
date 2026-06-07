@@ -1,9 +1,9 @@
 {
   "id": "image-gallery",
   "name": "Image Gallery",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "minAppVersion": "1.5.0",
-  "description": "A draggable masonry image gallery with a full-screen viewer.",
+  "description": "A draggable justified-rows image gallery with a full-screen viewer.",
   "author": "swapii",
   "authorUrl": "https://github.com/swapii",
   "isDesktopOnly": false
