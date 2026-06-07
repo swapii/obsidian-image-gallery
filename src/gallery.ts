@@ -84,28 +84,25 @@ export class GalleryRenderChild extends MarkdownRenderChild {
       });
     });
 
-    // Record image dimensions for the viewer and re-pack as each image loads.
-    imagesLoaded(grid).on("progress", (_instance, image) => {
-      if (image?.isLoaded) {
-        const item = image.img.closest<HTMLElement>(".ig-item");
-        const i = item ? Number(item.dataset.index) : -1;
-        if (i >= 0) {
-          this.slides[i].width = image.img.naturalWidth;
-          this.slides[i].height = image.img.naturalHeight;
-        }
-      }
-      this.muuri?.refreshItems().layout();
-    });
-
-    // Muuri requires the grid to be attached to the document, but Obsidian renders
-    // code blocks into a detached element — so wait until it's connected.
+    // Muuri requires the grid to be attached to the document AND to have a real width,
+    // but Obsidian renders code blocks into a detached, not-yet-sized element — so defer
+    // setup until both hold. Image-load wiring goes there too, once Muuri exists.
     this.initGridWhenAttached(grid);
   }
 
-  private initGridWhenAttached(grid: HTMLElement) {
+  private initGridWhenAttached(grid: HTMLElement, attempts = 0) {
     if (this.destroyed) return;
-    if (!document.body.contains(grid)) {
-      requestAnimationFrame(() => this.initGridWhenAttached(grid));
+
+    // Muuri packs absolutely-positioned tiles from the grid's measured width. Obsidian
+    // attaches a rendered code block before its pane has a settled width, so waiting only
+    // for attachment can run the one guaranteed layout against width 0 — every tile lands
+    // at (0,0), they overlap, and you see a single photo until something forces another
+    // layout (e.g. dragging the pane edge). So wait for a real width too. Don't spin
+    // forever: after ~1s give up waiting, build anyway, and let the ResizeObserver recover
+    // the layout whenever the pane is finally shown or resized.
+    const ready = document.body.contains(grid) && grid.clientWidth > 0;
+    if (!ready && attempts < 60) {
+      requestAnimationFrame(() => this.initGridWhenAttached(grid, attempts + 1));
       return;
     }
 
@@ -125,8 +122,31 @@ export class GalleryRenderChild extends MarkdownRenderChild {
     // Reordering is local — just toggle the controls. The note is rewritten on Apply.
     this.muuri.on("dragReleaseEnd", () => this.updateButtons());
 
-    this.resizeObserver = new ResizeObserver(() => this.muuri?.layout());
+    // Re-pack on any later size change. refreshItems() re-measures tiles before layout(),
+    // so a width change arriving together with freshly-loaded images still packs correctly,
+    // and the first real width (after a render at width 0) repairs the overlapping pile.
+    this.resizeObserver = new ResizeObserver(() => this.muuri?.refreshItems().layout());
     this.resizeObserver.observe(this.containerEl);
+
+    // Record image dimensions for the viewer and re-pack as each image loads. Wired up only
+    // now that Muuri exists: cached images can finish loading during the wait above, and if
+    // imagesLoaded were attached earlier (as it used to be) those relayouts would fire into a
+    // null Muuri and be silently lost — leaving the grid frozen in its first layout. Attaching
+    // late loses nothing: imagesLoaded still emits progress for already-complete images. The
+    // final "always" pass guarantees one more layout after every image has settled.
+    const loaded = imagesLoaded(grid);
+    loaded.on("progress", (_instance, image) => {
+      if (image?.isLoaded) {
+        const item = image.img.closest<HTMLElement>(".ig-item");
+        const i = item ? Number(item.dataset.index) : -1;
+        if (i >= 0) {
+          this.slides[i].width = image.img.naturalWidth;
+          this.slides[i].height = image.img.naturalHeight;
+        }
+      }
+      this.muuri?.refreshItems().layout();
+    });
+    loaded.on("always", () => this.muuri?.refreshItems().layout());
 
     // Images may already have loaded while we waited — re-pack to be safe.
     this.muuri.refreshItems().layout();
